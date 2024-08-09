@@ -1,0 +1,22 @@
+name: "Create payments env file"
+description: Create env file for payments app.
+inputs:
+  stripe_api_key:
+    description: 'Private STRIPE API KEY'
+    required: true
+  cors_origin:
+    description: 'CORS origin url'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: 'Create env file for payments app'
+      shell: bash
+      run: |
+        touch apps/payments/.env.production
+        echo PORT=8000 >> apps/payments/.env.production
+        echo STRIPE_API_KEY=${{ inputs.stripe_api_key }} >> apps/payments/.env.production
+        echo CORS_ORIGIN=${{ inputs.cors_origin }} >> apps/payments/.env.production
+        cat apps/payments/.env.production
+

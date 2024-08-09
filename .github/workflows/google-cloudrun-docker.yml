@@ -1,0 +1,73 @@
+name: Build and Deploy to Cloud Run
+
+on:
+  # push:
+  #   branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: manifestlaw-prod
+  GAR_NAME: github-actions
+  GAR_LOCATION: us-central1
+  PAYMENTS_APP: manifest-mono-payments
+  PAYMENTS_ADMIN_APP: manifest-mono-payments-admin
+  REGION: us-central1
+
+jobs:
+  deploy:
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+      - name: Docker Auth
+        run: |-
+          gcloud auth configure-docker "${{ env.GAR_LOCATION }}-docker.pkg.dev"
+
+      - name: 'Create env file for payments app'
+        uses: ./.github/actions/create-payments-env-file
+        with:
+          stripe_api_key:  ${{ secrets.PROD_PAYMENTS_STRIPE_API_KEY }}
+          cors_origin: ${{ vars.PROD_PAYMENTS_CORS_ORIGIN }}
+
+      - name: 'Create env file for payments-admin app'
+        uses: ./.github/actions/create-payments-admin-env-file
+        with:
+          base_api_url:  ${{ vars.PROD_PAYMENTS_ADMIN_BASE_API_URL }}
+
+      - name: Build and Push Container
+        run: |-
+          docker build -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.PAYMENTS_APP }}:${{ github.sha }}" ./ --file Dockerfile.prod --target payments
+          docker build -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.PAYMENTS_ADMIN_APP }}:${{ github.sha }}" ./ --file Dockerfile.prod --target payments-admin
+          docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.PAYMENTS_APP }}:${{ github.sha }}"
+          docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.PAYMENTS_ADMIN_APP }}:${{ github.sha }}"
+
+      - name: Deploy Payments app to Cloud Run
+        id: deploy-payments
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.PAYMENTS_APP }}
+          region: ${{ env.REGION }}
+          image: "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.PAYMENTS_APP }}:${{ github.sha }}"
+
+      - name: Deploy Payments-admin to Cloud Run
+        id: deploy-payments-admin
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.PAYMENTS_ADMIN_APP }}
+          region: ${{ env.REGION }}
+          image: "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.PAYMENTS_ADMIN_APP }}:${{ github.sha }}"
+
+
+      - name: Show Output
+        run: echo ${{ steps.deploy.outputs.url }}

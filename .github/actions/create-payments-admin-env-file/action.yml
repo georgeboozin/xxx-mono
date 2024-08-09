@@ -1,0 +1,18 @@
+name: "Create payments-admin env file"
+description: Create env file for payments-admin app.
+inputs:
+  base_api_url:
+    description: 'url to call api'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: 'Create env file for payments-admin app'
+      shell: bash
+      run: |
+        touch apps/payments-admin/.env.production
+        echo VITE_BASE_API_URL=${{ inputs.base_api_url }} >> apps/payments-admin/.env.production
+        cat apps/payments-admin/.env.production
+
+

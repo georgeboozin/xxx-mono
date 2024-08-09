@@ -1,0 +1,32 @@
+FROM node:20-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+RUN corepack use pnpm@9.x
+RUN pnpm install -g @nestjs/cli
+
+FROM base AS build
+COPY . /usr/src/app
+WORKDIR /usr/src/app
+RUN pnpm install --frozen-lockfile
+ENV NODE_ENV=production
+# build all apps and packages
+RUN node_modules/.bin/nx run-many -t build
+RUN pnpm deploy --filter=payments --prod /prod/payments
+RUN pnpm deploy --filter=payments-admin --prod /prod/payments-admin
+RUN cp -R apps/payments/dist /prod/payments/dist
+RUN cp -R apps/payments-admin/dist /prod/payments-admin/dist
+
+
+FROM base AS payments
+COPY --from=build /prod/payments /prod/payments
+WORKDIR /prod/payments
+EXPOSE 8000
+ENV NODE_ENV=production
+CMD [ "pnpm", "start" ]
+
+FROM nginx:alpine as payments-admin
+ENV NODE_ENV=production
+COPY --from=build /prod/payments-admin/dist /usr/share/nginx/html
+COPY docker/payments-admin/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 8080

@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2015",
+    "outDir": "lib",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+  },
+  "include": ["."],
+  "exclude": [
+    "node_modules/**/*",
+    "lib",
+    "**/*.spec.ts"
+  ]
+}

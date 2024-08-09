@@ -1,5 +1,5 @@
 {
-  "name": "manifest-mono",
+  "name": "xxx-mono",
   "version": "1.0.0",
   "description": "",
   "scripts": {
@@ -7,5 +7,10 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "lefthook": "^1.7.14",
+    "nx": "^19.5.7"
+  },
+  "packageManager": "pnpm@9.0.5"
 }
